@@ -15,123 +15,137 @@ local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 local HttpService      = game:GetService("HttpService")
-local StarterGui       = game:GetService("StarterGui")
 local localPlayer      = Players.LocalPlayer
 local camera           = workspace.CurrentCamera
 local mouse            = localPlayer:GetMouse()
 
 -- ══════════════════════════════════════════
---  STREAMPROOF — hide from OBS/capture
+--  STREAMPROOF
 -- ══════════════════════════════════════════
 
 local function makeStreamproof(gui)
-    -- Sets DisplayOrder very high and uses a protected ScreenGui
-    -- Most executors support this natively via syn.protect_gui or gethui
+    local success = false
     pcall(function()
         if syn and syn.protect_gui then
             syn.protect_gui(gui)
             gui.Parent = game.CoreGui
-        elseif gethui then
-            gui.Parent = gethui()
-        else
-            gui.Parent = game.CoreGui
+            success = true
         end
     end)
+    if not success then
+        pcall(function()
+            if gethui then
+                gui.Parent = gethui()
+                success = true
+            end
+        end)
+    end
+    if not success then
+        pcall(function()
+            gui.Parent = game.CoreGui
+        end)
+        if not gui.Parent or gui.Parent ~= game.CoreGui then
+            gui.Parent = localPlayer:WaitForChild("PlayerGui")
+        end
+    end
 end
 
 -- ══════════════════════════════════════════
 --  KEY SYSTEM
 -- ══════════════════════════════════════════
 
-local VALID_KEYS    = { ["999"] = true }
-local keyVerified   = false
-local keyGui        = Instance.new("ScreenGui")
-keyGui.Name         = "VoidKeySystem"
-keyGui.ResetOnSpawn = false
+local VALID_KEYS  = { ["999"] = true }
+local keyVerified = false
+
+local keyGui             = Instance.new("ScreenGui")
+keyGui.Name              = "VoidKeySystem"
+keyGui.ResetOnSpawn      = false
+keyGui.IgnoreGuiInset    = true
 makeStreamproof(keyGui)
 
-local keyFrame = Instance.new("Frame", keyGui)
-keyFrame.Size            = UDim2.new(0, 380, 0, 200)
-keyFrame.Position        = UDim2.new(0.5, -190, 0.5, -100)
-keyFrame.BackgroundColor3 = Color3.fromRGB(10, 5, 20)
-keyFrame.BorderSizePixel = 0
+local keyFrame                  = Instance.new("Frame", keyGui)
+keyFrame.Size                   = UDim2.new(0, 380, 0, 210)
+keyFrame.Position               = UDim2.new(0.5, -190, 0.5, -105)
+keyFrame.BackgroundColor3       = Color3.fromRGB(10, 5, 20)
+keyFrame.BorderSizePixel        = 0
+keyFrame.Active                 = true
+keyFrame.Draggable              = true
 Instance.new("UICorner", keyFrame).CornerRadius = UDim.new(0, 12)
 
--- gradient
-local grad = Instance.new("UIGradient", keyFrame)
-grad.Color = ColorSequence.new({
+local grad        = Instance.new("UIGradient", keyFrame)
+grad.Color        = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 10, 50)),
     ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 4, 18)),
 })
 grad.Rotation = 90
 
--- stroke
-local stroke = Instance.new("UIStroke", keyFrame)
-stroke.Color     = Color3.fromRGB(130, 60, 220)
-stroke.Thickness = 1.5
+local stroke          = Instance.new("UIStroke", keyFrame)
+stroke.Color          = Color3.fromRGB(130, 60, 220)
+stroke.Thickness      = 1.5
 
-local keyTitle = Instance.new("TextLabel", keyFrame)
-keyTitle.Size              = UDim2.new(1, 0, 0, 40)
-keyTitle.Position          = UDim2.new(0, 0, 0, 10)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Text              = "void.wtf — Key System"
-keyTitle.TextColor3        = Color3.fromRGB(210, 180, 255)
-keyTitle.Font              = Enum.Font.GothamBold
-keyTitle.TextSize          = 16
+local keyTitle                       = Instance.new("TextLabel", keyFrame)
+keyTitle.Size                        = UDim2.new(1, 0, 0, 40)
+keyTitle.Position                    = UDim2.new(0, 0, 0, 10)
+keyTitle.BackgroundTransparency      = 1
+keyTitle.Text                        = "void.wtf — Key System"
+keyTitle.TextColor3                  = Color3.fromRGB(210, 180, 255)
+keyTitle.Font                        = Enum.Font.GothamBold
+keyTitle.TextSize                    = 16
 
-local keySubtitle = Instance.new("TextLabel", keyFrame)
-keySubtitle.Size              = UDim2.new(1, -40, 0, 20)
-keySubtitle.Position          = UDim2.new(0, 20, 0, 48)
-keySubtitle.BackgroundTransparency = 1
-keySubtitle.Text              = "Enter your key to continue"
-keySubtitle.TextColor3        = Color3.fromRGB(170, 140, 210)
-keySubtitle.Font              = Enum.Font.Gotham
-keySubtitle.TextSize          = 13
+local keySubtitle                    = Instance.new("TextLabel", keyFrame)
+keySubtitle.Size                     = UDim2.new(1, -40, 0, 20)
+keySubtitle.Position                 = UDim2.new(0, 20, 0, 50)
+keySubtitle.BackgroundTransparency   = 1
+keySubtitle.Text                     = "Enter your key to continue"
+keySubtitle.TextColor3               = Color3.fromRGB(170, 140, 210)
+keySubtitle.Font                     = Enum.Font.Gotham
+keySubtitle.TextSize                 = 13
 
-local keyBox = Instance.new("TextBox", keyFrame)
-keyBox.Size              = UDim2.new(1, -40, 0, 38)
-keyBox.Position          = UDim2.new(0, 20, 0, 80)
-keyBox.BackgroundColor3  = Color3.fromRGB(20, 10, 40)
-keyBox.TextColor3        = Color3.fromRGB(240, 220, 255)
-keyBox.PlaceholderText   = "Paste key here..."
-keyBox.PlaceholderColor3 = Color3.fromRGB(100, 80, 140)
-keyBox.Font              = Enum.Font.Gotham
-keyBox.TextSize          = 14
-keyBox.ClearTextOnFocus  = false
-keyBox.BorderSizePixel   = 0
-Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", keyBox).Color        = Color3.fromRGB(130, 60, 220)
+local keyBox                 = Instance.new("TextBox", keyFrame)
+keyBox.Size                  = UDim2.new(1, -40, 0, 38)
+keyBox.Position              = UDim2.new(0, 20, 0, 82)
+keyBox.BackgroundColor3      = Color3.fromRGB(20, 10, 40)
+keyBox.TextColor3            = Color3.fromRGB(240, 220, 255)
+keyBox.PlaceholderText       = "Paste key here..."
+keyBox.PlaceholderColor3     = Color3.fromRGB(100, 80, 140)
+keyBox.Font                  = Enum.Font.Gotham
+keyBox.TextSize              = 14
+keyBox.ClearTextOnFocus      = false
+keyBox.BorderSizePixel       = 0
+Instance.new("UICorner", keyBox).CornerRadius  = UDim.new(0, 8)
+Instance.new("UIStroke", keyBox).Color         = Color3.fromRGB(130, 60, 220)
 
-local keyStatus = Instance.new("TextLabel", keyFrame)
-keyStatus.Size              = UDim2.new(1, -40, 0, 20)
-keyStatus.Position          = UDim2.new(0, 20, 0, 126)
-keyStatus.BackgroundTransparency = 1
-keyStatus.Text              = ""
-keyStatus.TextColor3        = Color3.fromRGB(255, 80, 80)
-keyStatus.Font              = Enum.Font.Gotham
-keyStatus.TextSize          = 12
+local keyStatus                      = Instance.new("TextLabel", keyFrame)
+keyStatus.Size                       = UDim2.new(1, -40, 0, 20)
+keyStatus.Position                   = UDim2.new(0, 20, 0, 128)
+keyStatus.BackgroundTransparency     = 1
+keyStatus.Text                       = ""
+keyStatus.TextColor3                 = Color3.fromRGB(255, 80, 80)
+keyStatus.Font                       = Enum.Font.Gotham
+keyStatus.TextSize                   = 12
 
-local keyBtn = Instance.new("TextButton", keyFrame)
-keyBtn.Size              = UDim2.new(1, -40, 0, 36)
-keyBtn.Position          = UDim2.new(0, 20, 0, 150)
-keyBtn.BackgroundColor3  = Color3.fromRGB(110, 40, 200)
-keyBtn.TextColor3        = Color3.fromRGB(240, 220, 255)
-keyBtn.Text              = "Verify Key"
-keyBtn.Font              = Enum.Font.GothamBold
-keyBtn.TextSize          = 14
-keyBtn.BorderSizePixel   = 0
+local keyBtn                 = Instance.new("TextButton", keyFrame)
+keyBtn.Size                  = UDim2.new(1, -40, 0, 38)
+keyBtn.Position              = UDim2.new(0, 20, 0, 155)
+keyBtn.BackgroundColor3      = Color3.fromRGB(110, 40, 200)
+keyBtn.TextColor3            = Color3.fromRGB(240, 220, 255)
+keyBtn.Text                  = "Verify Key"
+keyBtn.Font                  = Enum.Font.GothamBold
+keyBtn.TextSize              = 14
+keyBtn.BorderSizePixel       = 0
+keyBtn.AutoButtonColor       = true
 Instance.new("UICorner", keyBtn).CornerRadius = UDim.new(0, 8)
 
 -- ══════════════════════════════════════════
---  PROFILE SYSTEM (uses writefile/readfile)
+--  PROFILE SYSTEM
 -- ══════════════════════════════════════════
 
 local PROFILE_DIR  = "VoidWTF/"
 local PROFILE_FILE = PROFILE_DIR .. "profiles.json"
 
-local profileSystem = {}
-profileSystem.profiles     = {}
-profileSystem.activeProfile = "Default"
+local profileSystem            = {}
+profileSystem.profiles         = {}
+profileSystem.activeProfile    = "Default"
 
 local function ensureDir()
     pcall(function()
@@ -157,10 +171,7 @@ local function loadProfiles()
         end
     end)
     if not profileSystem.profiles["Default"] then
-        profileSystem.profiles["Default"] = {
-            settings = {},
-            keybinds = {},
-        }
+        profileSystem.profiles["Default"] = { settings = {}, keybinds = {} }
         saveProfiles()
     end
 end
@@ -223,68 +234,59 @@ end
 -- ══════════════════════════════════════════
 
 local DA_HOOD_IDS = {
-    [2788229376] = true,  -- real da hood
-    [6472838823] = true,  -- fake da hood variant 1
-    [7784997096] = true,  -- fake da hood variant 2
-    [5335562696] = true,  -- fake da hood variant 3
+    [2788229376] = true,
+    [6472838823] = true,
+    [7784997096] = true,
+    [5335562696] = true,
 }
 
 local function isDaHood()
-    local placeId = game.PlaceId
-    if DA_HOOD_IDS[placeId] then return true end
-    -- fallback: check for da hood specific instances
-    local hood = workspace:FindFirstChild("Hood") 
-        or workspace:FindFirstChild("DaHood")
-        or workspace:FindFirstChild("Map")
-    local hasGun = localPlayer.Backpack:FindFirstChildWhichIsA("Tool") ~= nil
-    -- check game name contains da hood
-    local gameName = string.lower(game:GetService("MarketplaceService"):GetProductInfo(placeId).Name or "")
-    if string.find(gameName, "da hood") or string.find(gameName, "dahood") then
-        return true
+    if DA_HOOD_IDS[game.PlaceId] then return true end
+    local ok, info = pcall(function()
+        return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+    end)
+    if ok and info and info.Name then
+        local name = string.lower(info.Name)
+        if string.find(name, "da hood") or string.find(name, "dahood") then
+            return true
+        end
     end
     return false
 end
 
-local IS_DA_HOOD = pcall(function() return isDaHood() end) and isDaHood() or false
+local IS_DA_HOOD = false
+pcall(function() IS_DA_HOOD = isDaHood() end)
 
 -- ══════════════════════════════════════════
 --  STATE
 -- ══════════════════════════════════════════
 
-local espEnabled       = profileSystem:LoadSetting("espEnabled", false)
-local aimbotEnabled    = profileSystem:LoadSetting("aimbotEnabled", false)
-local speedEnabled     = profileSystem:LoadSetting("speedEnabled", false)
+local espEnabled       = profileSystem:LoadSetting("espEnabled",       false)
+local aimbotEnabled    = profileSystem:LoadSetting("aimbotEnabled",    false)
+local speedEnabled     = profileSystem:LoadSetting("speedEnabled",     false)
 local silentAimEnabled = profileSystem:LoadSetting("silentAimEnabled", false)
 local espColor         = Color3.fromRGB(160, 80, 255)
 local npcColor         = Color3.fromRGB(255, 80, 80)
 local speedValue       = profileSystem:LoadSetting("speedValue", 16)
 local espBoxes         = {}
 
--- Aimbot config
 local aimbotConfig = {
-    mode         = profileSystem:LoadSetting("aimbotMode", "Legit"),
-    fov          = profileSystem:LoadSetting("aimbotFov", 120),
-    smoothness   = profileSystem:LoadSetting("aimbotSmooth", 5),
-    targetBone   = profileSystem:LoadSetting("aimbotBone", "Head"),
-    wallCheck    = profileSystem:LoadSetting("aimbotWallCheck", true),
-    teamCheck    = profileSystem:LoadSetting("aimbotTeamCheck", false),
-    visibleOnly  = profileSystem:LoadSetting("aimbotVisOnly", false),
+    mode       = profileSystem:LoadSetting("aimbotMode",      "Legit"),
+    fov        = profileSystem:LoadSetting("aimbotFov",        120),
+    smoothness = profileSystem:LoadSetting("aimbotSmooth",     5),
+    targetBone = profileSystem:LoadSetting("aimbotBone",       "Head"),
+    wallCheck  = profileSystem:LoadSetting("aimbotWallCheck",  true),
+    teamCheck  = profileSystem:LoadSetting("aimbotTeamCheck",  false),
+    visibleOnly= profileSystem:LoadSetting("aimbotVisOnly",    false),
 }
 
--- keybinds (loadable)
-local keybinds = {
-    aimbot = Enum.KeyCode[profileSystem:LoadKeybind("aimbot", "MouseButton2")] 
-             or Enum.UserInputType.MouseButton2,
-}
-
--- FOV circle drawing
-local fovCircle      = Drawing.new("Circle")
-fovCircle.Visible    = false
-fovCircle.Color      = Color3.fromRGB(210, 180, 255)
-fovCircle.Thickness  = 1
-fovCircle.Filled     = false
-fovCircle.NumSides   = 64
-fovCircle.Radius     = aimbotConfig.fov
+local fovCircle         = Drawing.new("Circle")
+fovCircle.Visible       = false
+fovCircle.Color         = Color3.fromRGB(210, 180, 255)
+fovCircle.Thickness     = 1
+fovCircle.Filled        = false
+fovCircle.NumSides      = 64
+fovCircle.Radius        = aimbotConfig.fov
 
 -- ══════════════════════════════════════════
 --  HELPERS
@@ -308,7 +310,7 @@ local function isAlive(model)
 end
 
 local function getBone(model, boneName)
-    return model:FindFirstChild(boneName) 
+    return model:FindFirstChild(boneName)
         or model:FindFirstChild("HumanoidRootPart")
 end
 
@@ -318,8 +320,7 @@ local function hasLineOfSight(part)
     local dir    = (part.Position - origin)
     local ray    = Ray.new(origin, dir)
     local hit    = workspace:FindPartOnRayWithIgnoreList(ray, {
-        localPlayer.Character, 
-        camera
+        localPlayer.Character, camera
     })
     if not hit then return true end
     return hit:IsDescendantOf(part.Parent)
@@ -349,11 +350,11 @@ local function getNPCModels()
     local playerChars = getPlayerChars()
     local t = {}
     for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model")
-            and not playerChars[model]
-            and not isLocalChar(model)
-            and getHumanoid(model)
-            and getRoot(model)
+        if  model:IsA("Model")
+        and not playerChars[model]
+        and not isLocalChar(model)
+        and getHumanoid(model)
+        and getRoot(model)
         then
             t[model] = model.Name
         end
@@ -382,31 +383,26 @@ local function makeDrawing(model, isNPC)
     if espBoxes[model] then return end
     local col = isNPC and npcColor or espColor
 
-    local box         = Drawing.new("Box")
-    box.Visible       = false
-    box.Color         = col
-    box.Thickness     = 1.5
-    box.Filled        = false
-    box.Transparency  = 1
+    local box        = Drawing.new("Box")
+    box.Visible      = false
+    box.Color        = col
+    box.Thickness    = 1.5
+    box.Filled       = false
+    box.Transparency = 1
 
-    local label       = Drawing.new("Text")
-    label.Visible     = false
-    label.Color       = col
-    label.Size        = 13
-    label.Outline     = true
-    label.Center      = true
+    local label      = Drawing.new("Text")
+    label.Visible    = false
+    label.Color      = col
+    label.Size       = 13
+    label.Outline    = true
+    label.Center     = true
 
-    local healthBar   = Drawing.new("Line")
-    healthBar.Visible = false
-    healthBar.Color   = Color3.fromRGB(80, 255, 100)
-    healthBar.Thickness = 2
+    local healthBar      = Drawing.new("Line")
+    healthBar.Visible    = false
+    healthBar.Color      = Color3.fromRGB(80, 255, 100)
+    healthBar.Thickness  = 2
 
-    espBoxes[model] = { 
-        box       = box, 
-        label     = label, 
-        healthBar = healthBar,
-        isNPC     = isNPC 
-    }
+    espBoxes[model] = { box = box, label = label, healthBar = healthBar, isNPC = isNPC }
 end
 
 local function removeDrawing(model)
@@ -426,32 +422,32 @@ local function updateESPColor()
     end
 end
 
--- seed players
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= localPlayer and p.Character then
         makeDrawing(p.Character, false)
     end
 end
+
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function(char)
         task.wait(0.5)
         makeDrawing(char, false)
     end)
 end)
+
 Players.PlayerRemoving:Connect(function(p)
     if p.Character then removeDrawing(p.Character) end
 end)
 
--- seed NPCs
 workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
     if obj:IsA("Model") and getHumanoid(obj) and getRoot(obj) and not isLocalChar(obj) then
-        local playerChars = getPlayerChars()
-        if not playerChars[obj] then
+        if not getPlayerChars()[obj] then
             makeDrawing(obj, true)
         end
     end
 end)
+
 workspace.DescendantRemoving:Connect(function(obj)
     if espBoxes[obj] then removeDrawing(obj) end
 end)
@@ -461,21 +457,65 @@ for model, _ in pairs(getNPCModels()) do
 end
 
 -- ══════════════════════════════════════════
+--  SILENT AIM (Da Hood)
+-- ══════════════════════════════════════════
+
+local function getSilentAimTarget()
+    local closestDist = math.huge
+    local closestPart = nil
+    local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+    for model, _ in pairs(getAllTargets()) do
+        if not isAlive(model) then continue end
+        local bone = getBone(model, aimbotConfig.targetBone)
+        if not bone then continue end
+        local screenPos, onScreen = camera:WorldToViewportPoint(bone.Position)
+        if onScreen then
+            local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+            if dist < closestDist then
+                closestDist = dist
+                closestPart = bone
+            end
+        end
+    end
+    return closestPart
+end
+
+if IS_DA_HOOD then
+    pcall(function()
+        local oldIndex
+        oldIndex = hookmetamethod(game, "__index", function(self, key)
+            if silentAimEnabled then
+                if key == "Hit" then
+                    local target = getSilentAimTarget()
+                    if target then return CFrame.new(target.Position) end
+                end
+                if key == "UnitRay" then
+                    local target = getSilentAimTarget()
+                    if target then
+                        local origin = camera.CFrame.Position
+                        local dir    = (target.Position - origin).Unit
+                        return Ray.new(origin, dir)
+                    end
+                end
+            end
+            return oldIndex(self, key)
+        end)
+    end)
+end
+
+-- ══════════════════════════════════════════
 --  AIMBOT
 -- ══════════════════════════════════════════
 
 local function getNearestTarget()
     local closestDist = aimbotConfig.fov
     local closestPart = nil
-    local center      = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-
+    local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     for model, _ in pairs(getAllTargets()) do
         if not isAlive(model) then continue end
         local bone = getBone(model, aimbotConfig.targetBone)
         if not bone then continue end
-
         if aimbotConfig.visibleOnly and not hasLineOfSight(bone) then continue end
-
         local screenPos, onScreen = camera:WorldToViewportPoint(bone.Position)
         if onScreen then
             local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
@@ -485,55 +525,7 @@ local function getNearestTarget()
             end
         end
     end
-
     return closestPart
-end
-
--- Silent aim — fires bullet toward target position
-local silentAimTarget = nil
-
-local function getSilentAimTarget()
-    local closestDist = math.huge
-    local closestPart = nil
-    local center      = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-
-    for model, _ in pairs(getAllTargets()) do
-        if not isAlive(model) then continue end
-        local bone = getBone(model, aimbotConfig.targetBone)
-        if not bone then continue end
-        local screenPos, onScreen = camera:WorldToViewportPoint(bone.Position)
-        if onScreen then
-            local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-            if dist < closestDist then
-                closestDist = dist
-                closestPart = bone
-            end
-        end
-    end
-
-    return closestPart
-end
-
--- Hook mouse position for silent aim
-if IS_DA_HOOD then
-    local oldIndex
-    oldIndex = hookmetamethod(game, "__index", function(self, key)
-        if key == "Hit" and silentAimEnabled then
-            local target = getSilentAimTarget()
-            if target then
-                return CFrame.new(target.Position)
-            end
-        end
-        if key == "UnitRay" and silentAimEnabled then
-            local target = getSilentAimTarget()
-            if target then
-                local origin = camera.CFrame.Position
-                local dir    = (target.Position - origin).Unit
-                return Ray.new(origin, dir)
-            end
-        end
-        return oldIndex(self, key)
-    end)
 end
 
 -- ══════════════════════════════════════════
@@ -542,7 +534,6 @@ end
 
 RunService.RenderStepped:Connect(function()
 
-    -- cleanup dead models
     for model, data in pairs(espBoxes) do
         if not model or not model.Parent then
             data.box:Remove()
@@ -552,7 +543,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ESP
     for model, data in pairs(espBoxes) do
         local box       = data.box
         local label     = data.label
@@ -577,26 +567,25 @@ RunService.RenderStepped:Connect(function()
             continue
         end
 
-        local height  = math.abs(topPos.Y - bottomPos.Y)
-        local width   = height * 0.5
-        local x       = topPos.X - width / 2
-        local y       = topPos.Y
+        local height = math.abs(topPos.Y - bottomPos.Y)
+        local width  = height * 0.5
+        local x      = topPos.X - width / 2
+        local y      = topPos.Y
 
         box.Size     = Vector2.new(width, height)
         box.Position = Vector2.new(x, y)
         box.Visible  = true
 
-        -- health bar (left side)
-        local hpRatio     = hum.Health / hum.MaxHealth
-        local barHeight   = height * hpRatio
-        healthBar.From    = Vector2.new(x - 5, y + height)
-        healthBar.To      = Vector2.new(x - 5, y + height - barHeight)
-        healthBar.Color   = Color3.fromRGB(
+        local hpRatio       = hum.Health / hum.MaxHealth
+        local barHeight     = height * hpRatio
+        healthBar.From      = Vector2.new(x - 5, y + height)
+        healthBar.To        = Vector2.new(x - 5, y + height - barHeight)
+        healthBar.Color     = Color3.fromRGB(
             math.floor(255 * (1 - hpRatio)),
             math.floor(255 * hpRatio),
             50
         )
-        healthBar.Visible = true
+        healthBar.Visible   = true
 
         local tag      = data.isNPC and "[NPC]" or "[PLR]"
         label.Text     = tag .. " " .. model.Name .. " [" .. math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth) .. "]"
@@ -604,7 +593,6 @@ RunService.RenderStepped:Connect(function()
         label.Visible  = true
     end
 
-    -- AIMBOT
     local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     fovCircle.Position = center
     fovCircle.Radius   = aimbotConfig.fov
@@ -615,20 +603,15 @@ RunService.RenderStepped:Connect(function()
         pcall(function()
             pressing = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         end)
-
         if pressing then
             local target = getNearestTarget()
             if target then
                 if aimbotConfig.mode == "Legit" then
-                    -- smooth camera movement
-                    local targetPos   = target.Position
-                    local currentCF   = camera.CFrame
-                    local direction   = (targetPos - currentCF.Position).Unit
-                    local targetCF    = CFrame.new(currentCF.Position, currentCF.Position + direction)
-                    local smooth      = aimbotConfig.smoothness / 10
-                    camera.CFrame     = currentCF:Lerp(targetCF, smooth)
+                    local currentCF = camera.CFrame
+                    local direction = (target.Position - currentCF.Position).Unit
+                    local targetCF  = CFrame.new(currentCF.Position, currentCF.Position + direction)
+                    camera.CFrame   = currentCF:Lerp(targetCF, aimbotConfig.smoothness / 10)
                 else
-                    -- blatant — instant snap
                     local dir     = (target.Position - camera.CFrame.Position).Unit
                     camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + dir)
                 end
@@ -658,7 +641,7 @@ localPlayer.CharacterAdded:Connect(function(char)
 end)
 
 -- ══════════════════════════════════════════
---  BUILD MAIN UI (called after key verify)
+--  BUILD MAIN UI
 -- ══════════════════════════════════════════
 
 local function buildUI()
@@ -689,9 +672,8 @@ local function buildUI()
     local divider   = mainFrame:WaitForChild("Divider")
     local myTabs    = AequorUI.TabManager:Init(mainFrame)
 
-    local tabCount = IS_DA_HOOD and 3 or 2
-    local tab1, container1 = myTabs:CreateTab("Home",    "Home",     1)
-    local tab2, container2 = myTabs:CreateTab("Profile", "Human",    2)
+    local tab1, container1 = myTabs:CreateTab("Home",    "Home",   1)
+    local tab2, container2 = myTabs:CreateTab("Profile", "Human",  2)
     local tab3, container3
     if IS_DA_HOOD then
         tab3, container3 = myTabs:CreateTab("Da Hood", "Target", 3)
@@ -702,14 +684,16 @@ local function buildUI()
     AequorUI.ThemeManager:SetComponentColor("Selection", Color3.fromRGB(130, 60, 220), { myTabs.SelectionBar })
     AequorUI.ThemeManager:SetComponentColor("Boundary",  Color3.fromRGB(180, 100, 255), { myTabs.BoundaryLine, divider })
 
-    local glowTargets = { tab1:WaitForChild("Glow"), tab2:WaitForChild("Glow") }
-    if tab3 then table.insert(glowTargets, tab3:WaitForChild("Glow")) end
-    AequorUI.ThemeManager:SetComponentColor("Glow", Color3.fromRGB(160, 80, 255), glowTargets)
-    AequorUI.ThemeManager:SetComponentTransparency("Boundary", 0.75, { myTabs.BoundaryLine, divider })
+    local glows = { tab1:WaitForChild("Glow"), tab2:WaitForChild("Glow") }
+    local icons = { tab1:WaitForChild("Icon"), tab2:WaitForChild("Icon") }
+    if tab3 then
+        table.insert(glows, tab3:WaitForChild("Glow"))
+        table.insert(icons, tab3:WaitForChild("Icon"))
+    end
 
-    local iconTargets = { tab1:WaitForChild("Icon"), tab2:WaitForChild("Icon") }
-    if tab3 then table.insert(iconTargets, tab3:WaitForChild("Icon")) end
-    AequorUI.IconManager:SetIconColor(Color3.fromRGB(210, 180, 255), iconTargets)
+    AequorUI.ThemeManager:SetComponentColor("Glow", Color3.fromRGB(160, 80, 255), glows)
+    AequorUI.ThemeManager:SetComponentTransparency("Boundary", 0.75, { myTabs.BoundaryLine, divider })
+    AequorUI.IconManager:SetIconColor(Color3.fromRGB(210, 180, 255), icons)
 
     -- ──────────────────────────────────────
     --  HOME TAB
@@ -720,16 +704,15 @@ local function buildUI()
         "The cleanest universal script hub."
     )
 
-    -- ESP
-    AequorUI.ElementManager:CreateToggle(container1,
-        "ESP",
-        "Show players & NPCs through walls.",
+    local espToggle = AequorUI.ElementManager:CreateToggle(container1,
+        "ESP", "Show players & NPCs through walls.",
         function(state)
             espEnabled = state
             profileSystem:SaveSetting("espEnabled", state)
         end,
-        { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-    ):SetValue(espEnabled)
+        { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
+    )
+    espToggle:SetValue(espEnabled)
 
     AequorUI.ElementManager:CreateColorPicker(container1,
         "Player ESP Color", "Color for real players.",
@@ -743,16 +726,15 @@ local function buildUI()
         function(color) npcColor = color updateESPColor() end
     )
 
-    -- Aimbot
-    AequorUI.ElementManager:CreateToggle(container1,
-        "Aimbot",
-        "Hold RMB to lock onto nearest target.",
+    local aimbotToggle = AequorUI.ElementManager:CreateToggle(container1,
+        "Aimbot", "Hold RMB to lock onto nearest target.",
         function(state)
             aimbotEnabled = state
             profileSystem:SaveSetting("aimbotEnabled", state)
         end,
-        { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-    ):SetValue(aimbotEnabled)
+        { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
+    )
+    aimbotToggle:SetValue(aimbotEnabled)
 
     AequorUI.ElementManager:CreateDropdown(container1,
         "Aimbot Mode", "Legit = smooth. Blatant = instant snap.",
@@ -782,7 +764,7 @@ local function buildUI()
             fovCircle.Radius = val
             profileSystem:SaveSetting("aimbotFov", val)
         end,
-        { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+        { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
     )
 
     AequorUI.ElementManager:CreateSlider(container1,
@@ -792,37 +774,39 @@ local function buildUI()
             aimbotConfig.smoothness = val
             profileSystem:SaveSetting("aimbotSmooth", val)
         end,
-        { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+        { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
     )
 
-    AequorUI.ElementManager:CreateToggle(container1,
+    local visToggle = AequorUI.ElementManager:CreateToggle(container1,
         "Visible Only", "Only target players you can see.",
         function(state)
             aimbotConfig.visibleOnly = state
             profileSystem:SaveSetting("aimbotVisOnly", state)
         end,
-        { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-    ):SetValue(aimbotConfig.visibleOnly)
+        { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
+    )
+    visToggle:SetValue(aimbotConfig.visibleOnly)
 
-    AequorUI.ElementManager:CreateToggle(container1,
+    local teamToggle = AequorUI.ElementManager:CreateToggle(container1,
         "Team Check", "Skip teammates.",
         function(state)
             aimbotConfig.teamCheck = state
             profileSystem:SaveSetting("aimbotTeamCheck", state)
         end,
-        { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-    ):SetValue(aimbotConfig.teamCheck)
+        { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
+    )
+    teamToggle:SetValue(aimbotConfig.teamCheck)
 
-    -- Speed
-    AequorUI.ElementManager:CreateToggle(container1,
+    local speedToggle = AequorUI.ElementManager:CreateToggle(container1,
         "Speed Hack", "Enable custom walk speed.",
         function(state)
             speedEnabled = state
             profileSystem:SaveSetting("speedEnabled", state)
             applySpeed()
         end,
-        { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-    ):SetValue(speedEnabled)
+        { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
+    )
+    speedToggle:SetValue(speedEnabled)
 
     AequorUI.ElementManager:CreateSlider(container1,
         "Walk Speed", "Set your speed value.",
@@ -832,11 +816,11 @@ local function buildUI()
             profileSystem:SaveSetting("speedValue", val)
             applySpeed()
         end,
-        { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+        { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
     )
 
     -- ──────────────────────────────────────
-    --  DA HOOD TAB (only if detected)
+    --  DA HOOD TAB
     -- ──────────────────────────────────────
 
     if IS_DA_HOOD and container3 then
@@ -846,22 +830,17 @@ local function buildUI()
             "Auto-detected Da Hood (real + fake variants)."
         )
 
-        -- Silent aim
-        AequorUI.ElementManager:CreateToggle(container3,
-            "Silent Aim",
-            "Bullets snap to target without moving camera.",
+        local saToggle = AequorUI.ElementManager:CreateToggle(container3,
+            "Silent Aim", "Bullets snap to target without moving camera.",
             function(state)
                 silentAimEnabled = state
                 profileSystem:SaveSetting("silentAimEnabled", state)
             end,
-            { OnColor = Color3.fromRGB(110, 40, 200), OffColor = Color3.fromRGB(30, 20, 50), DotColor = Color3.fromRGB(230, 200, 255) }
-        ):SetValue(silentAimEnabled)
-
-        -- Legit aimbot config
-        AequorUI.ElementManager:CreateParagraph(container3,
-            "Legit Aimbot",
-            "Slow, human-like aim. Less obvious."
+            { OnColor = Color3.fromRGB(110,40,200), OffColor = Color3.fromRGB(30,20,50), DotColor = Color3.fromRGB(230,200,255) }
         )
+        saToggle:SetValue(silentAimEnabled)
+
+        AequorUI.ElementManager:CreateParagraph(container3, "Legit Aimbot", "Slow, human-like aim.")
 
         AequorUI.ElementManager:CreateSlider(container3,
             "Legit Smoothness", "Higher = more human-like.",
@@ -870,7 +849,7 @@ local function buildUI()
                 aimbotConfig.smoothness = val
                 profileSystem:SaveSetting("aimbotSmooth", val)
             end,
-            { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+            { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
         )
 
         AequorUI.ElementManager:CreateSlider(container3,
@@ -883,14 +862,10 @@ local function buildUI()
                     profileSystem:SaveSetting("aimbotFov", val)
                 end
             end,
-            { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+            { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
         )
 
-        -- Blatant aimbot config
-        AequorUI.ElementManager:CreateParagraph(container3,
-            "Blatant Aimbot",
-            "Instant lock. Max FOV."
-        )
+        AequorUI.ElementManager:CreateParagraph(container3, "Blatant Aimbot", "Instant lock. Max FOV.")
 
         AequorUI.ElementManager:CreateSlider(container3,
             "Blatant FOV", "How wide blatant mode locks.",
@@ -902,7 +877,7 @@ local function buildUI()
                     profileSystem:SaveSetting("aimbotFov", val)
                 end
             end,
-            { TrackColor = Color3.fromRGB(20, 10, 40), FillColor = Color3.fromRGB(130, 60, 220), DotColor = Color3.fromRGB(210, 180, 255) }
+            { TrackColor = Color3.fromRGB(20,10,40), FillColor = Color3.fromRGB(130,60,220), DotColor = Color3.fromRGB(210,180,255) }
         )
 
         AequorUI.ElementManager:CreateButton(container3,
@@ -911,7 +886,7 @@ local function buildUI()
                 aimbotConfig.mode = "Blatant"
                 profileSystem:SaveSetting("aimbotMode", "Blatant")
             end,
-            { GlowColor = Color3.fromRGB(200, 40, 40), IconColor = Color3.fromRGB(255, 180, 180) }
+            { GlowColor = Color3.fromRGB(200,40,40), IconColor = Color3.fromRGB(255,180,180) }
         )
 
         AequorUI.ElementManager:CreateButton(container3,
@@ -920,9 +895,8 @@ local function buildUI()
                 aimbotConfig.mode = "Legit"
                 profileSystem:SaveSetting("aimbotMode", "Legit")
             end,
-            { GlowColor = Color3.fromRGB(80, 180, 80), IconColor = Color3.fromRGB(180, 255, 180) }
+            { GlowColor = Color3.fromRGB(80,180,80), IconColor = Color3.fromRGB(180,255,180) }
         )
-
     end
 
     -- ──────────────────────────────────────
@@ -934,11 +908,9 @@ local function buildUI()
         "Active: " .. profileSystem.activeProfile
     )
 
-    -- profile switcher
-    local profileNames = profileSystem:GetProfileNames()
     AequorUI.ElementManager:CreateDropdown(container2,
         "Active Profile", "Switch between saved profiles.",
-        profileNames,
+        profileSystem:GetProfileNames(),
         profileSystem.activeProfile,
         function(sel)
             profileSystem.activeProfile = sel
@@ -946,50 +918,45 @@ local function buildUI()
         end
     )
 
-    -- new profile button
-    local newProfileBox
-    newProfileBox = AequorUI.ElementManager:CreateButton(container2,
+    AequorUI.ElementManager:CreateButton(container2,
         "Create New Profile",
-        "Type a name in the box below then click.",
+        "Creates a new numbered profile.",
         function()
-            -- read from a clipboard-style field — use a simple name cycle
             local name = "Profile_" .. tostring(#profileSystem:GetProfileNames() + 1)
             profileSystem:CreateProfile(name)
-            print("void.wtf — created profile: " .. name)
+            print("void.wtf — created: " .. name)
         end,
-        { GlowColor = Color3.fromRGB(80, 180, 80), IconColor = Color3.fromRGB(180, 255, 180) }
+        { GlowColor = Color3.fromRGB(80,180,80), IconColor = Color3.fromRGB(180,255,180) }
     )
 
     AequorUI.ElementManager:CreateButton(container2,
         "Delete Active Profile",
-        "Deletes the current profile (not Default).",
+        "Deletes current profile (not Default).",
         function()
             profileSystem:DeleteProfile(profileSystem.activeProfile)
         end,
-        { GlowColor = Color3.fromRGB(200, 40, 40), IconColor = Color3.fromRGB(255, 180, 180) }
+        { GlowColor = Color3.fromRGB(200,40,40), IconColor = Color3.fromRGB(255,180,180) }
     )
 
-    -- keybind display
     AequorUI.ElementManager:CreateParagraph(container2,
         "Keybinds",
         "Aimbot: RMB (Hold)\nUI Toggle: L"
     )
 
     AequorUI.ElementManager:CreateButton(container2,
-        "Logout",
-        "Sign out of your account.",
+        "Logout", "Sign out of your account.",
         function() print("Logout!") end,
-        { GlowColor = Color3.fromRGB(180, 40, 40), IconColor = Color3.fromRGB(255, 180, 180) }
+        { GlowColor = Color3.fromRGB(180,40,40), IconColor = Color3.fromRGB(255,180,180) }
     )
 
-    print("void.wtf — UI loaded | Profile: " .. profileSystem.activeProfile)
+    print("void.wtf loaded | profile: " .. profileSystem.activeProfile)
 end
 
 -- ══════════════════════════════════════════
---  KEY VERIFY LOGIC
+--  KEY VERIFY
 -- ══════════════════════════════════════════
 
-keyBtn.MouseButton1Click:Connect(function()
+local function verifyKey()
     local input = keyBox.Text:gsub("%s+", "")
     if VALID_KEYS[input] then
         keyVerified = true
@@ -1001,7 +968,6 @@ keyBtn.MouseButton1Click:Connect(function()
     else
         keyStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
         keyStatus.Text       = "✗ Invalid key. Try again."
-        -- shake animation
         local orig = keyFrame.Position
         for i = 1, 6 do
             keyFrame.Position = orig + UDim2.new(0, i % 2 == 0 and 6 or -6, 0, 0)
@@ -1009,13 +975,12 @@ keyBtn.MouseButton1Click:Connect(function()
         end
         keyFrame.Position = orig
     end
-end)
+end
 
--- also allow enter key
+keyBtn.MouseButton1Click:Connect(verifyKey)
+keyBtn.MouseButton1Up:Connect(verifyKey)
 keyBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        keyBtn.MouseButton1Click:Fire()
-    end
+    if enterPressed then verifyKey() end
 end)
 
 print("void.wtf — key system ready")
